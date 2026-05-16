@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ALADIN_OPEN_API_KEY = os.getenv("ALADIN_OPEN_API_KEY")
-book_item_list_url = "https://www.aladin.co.kr/ttb/api/ItemList.aspx"
 
+book_item_list_url = "https://www.aladin.co.kr/ttb/api/ItemList.aspx"
 book_item_list_params = {
     "ttbkey": ALADIN_OPEN_API_KEY,
     "QueryType": "BestSeller",
