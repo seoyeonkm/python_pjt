@@ -55,4 +55,4 @@ def get_balanced_bestseller():
 
 df = get_balanced_bestseller()
 df.to_csv("book_data.csv", index=False, encoding='utf-8-sig')
-print("--- 데이터 수집 및 판매지수 포함 저장 완료 ---")
+print("--- 데이터 수집  완료 ---")
