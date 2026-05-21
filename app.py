@@ -80,4 +80,4 @@ with main_tab3:
         st.header(" 인기 음악 추천")
         show_dataframe(get_display_df(df_music.sort_values(by='salesPoint', ascending=False).head(10)))
     else:
-        st.info("음악 데이터가 없습니다. youtube.py를 먼저 실행해 music_data.csv를 생성하세요.")
+        st.info("음악 데이터가 없습니다. itunes.py를 먼저 실행해 music_data.csv를 생성하세요.")
