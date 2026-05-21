@@ -2,14 +2,19 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
+from pathlib import Path
+
+
+BASE_DIR = Path(__file__).resolve().parent
 
 st.set_page_config(page_title="콘텐츠 통합 추천 플랫폼", layout="wide")
 
 
 @st.cache_data
 def load_and_process_data(file_name):
-    if os.path.exists(file_name):
-        df = pd.read_csv(file_name)
+    file_path = BASE_DIR / file_name
+    if file_path.exists():
+        df = pd.read_csv(file_path)
         
         
         df['score'] = pd.to_numeric(df['score'], errors='coerce').fillna(0)
@@ -87,7 +92,7 @@ with main_tab2:
         st.header(" 인기 영화 추천")
         show_dataframe(get_display_df(df_movie.sort_values(by='popularity_score', ascending=False).head(10)))
     else:
-        st.info("영화 데이터가 없습니다. `tmdb.py`를 먼저 실행하세요.")
+        st.info("영화 데이터가 없습니다. kofic.py를 먼저 실행해 movie_data.csv를 생성하세요.")
 
 with main_tab3:
     st.info(" 음악 데이터는 곧 업데이트될 예정입니다.")
