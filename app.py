@@ -13,7 +13,7 @@ def load_and_process_data(file_name):
     file_path = BASE_DIR / file_name
     if file_path.exists():
         df = pd.read_csv(file_path)
- 
+        # salespoint 높은 순으로 top10 정렬하는 코드에요
         df['salesPoint'] = pd.to_numeric(df['salesPoint'], errors='coerce').fillna(0)
 
         return df
@@ -21,12 +21,9 @@ def load_and_process_data(file_name):
 
 
 def get_display_df(data):
-    d = data[['title', 'artist', 'genre', 'year']].copy()
+    d = data[['title', 'genre', 'year']].copy()
     
-  
-    d['title'] = d['title'].apply(lambda x: str(x)[:30] + '...' if len(str(x)) > 30 else x)
-    
-    d.columns = ['제목', '크리에이터', '장르', '발행년도']
+    d.columns = ['제목', '장르', '발행년도']
     return d
 
 
@@ -37,7 +34,6 @@ def show_dataframe(df):
         hide_index=True,
         column_config={
             "제목": st.column_config.TextColumn("제목", width="large"),
-            "크리에이터": st.column_config.TextColumn("크리에이터", width="medium"),
             "장르": st.column_config.TextColumn("장르", width="small"),
             "발행년도": st.column_config.NumberColumn("발행년도", format="%d")
         }
@@ -45,7 +41,7 @@ def show_dataframe(df):
 
 
 def render_recommendation_tabs(df, content_key):
-    sub_tab1, sub_tab2, sub_tab3 = st.tabs([" 전체 TOP 10", " 장르별 정밀 추천", " 랜덤 추천"])
+    sub_tab1, sub_tab2, sub_tab3 = st.tabs([" 전체 TOP 10", " 장르별 정밀 추천", " 랜덤 발견"])
 
     with sub_tab1:
         show_dataframe(get_display_df(df.sort_values(by='salesPoint', ascending=False).head(10)))
@@ -78,11 +74,11 @@ with main_tab2:
     if df_movie is not None:
         render_recommendation_tabs(df_movie, "movie")
     else:
-        st.info("영화 데이터가 없습니다. kofic.py를 먼저 실행해 movie_data.csv를 생성하세요.")
+        st.info("영화 데이터가 없습니다.")
 
 with main_tab3:
     df_music = load_and_process_data("music_data.csv")
     if df_music is not None:
         render_recommendation_tabs(df_music, "music")
     else:
-        st.info("음악 데이터가 없습니다. itunes.py를 먼저 실행해 music_data.csv를 생성하세요.")
+        st.info("음악 데이터가 없습니다.")
