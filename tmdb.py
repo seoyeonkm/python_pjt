@@ -86,4 +86,4 @@ def get_tmdb_movies(target_count=TARGET_COUNT, language="ko-KR"):
 
 df = get_tmdb_movies()
 df.to_csv("movie_data.csv", index=False, encoding="utf-8-sig")
-print("--- TMDB 영화 데이터 수집 완료 ---")
+print("--- 영화 데이터 수집 완료 ---")
