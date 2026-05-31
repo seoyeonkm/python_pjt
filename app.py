@@ -8,6 +8,46 @@ BASE_DIR = Path(__file__).resolve().parent
 st.set_page_config(page_title="콘텐츠 통합 추천 플랫폼", layout="wide")
 
 
+GENRE_TO_MOOD_TAGS = {
+    "액션": {"속도감", "긴장감", "강렬함", "모험"},
+    "스릴러": {"긴장감", "서스펜스", "어두움"},
+    "SF": {"미래", "상상력", "모험", "신비"},
+    "판타지": {"상상력", "신비", "모험"},
+    "코미디": {"유쾌함", "가벼움", "밝음"},
+    "드라마": {"감정", "몰입", "잔잔함"},
+    "로맨스": {"감성", "따뜻함", "잔잔함"},
+    "공포": {"긴장감", "어두움", "자극"},
+    "미스터리": {"추리", "긴장감", "몰입"},
+    "애니메이션": {"유쾌함", "상상력", "따뜻함"},
+    "소설": {"이야기", "몰입", "감정"},
+    "경제/경영": {"현실성", "정보성", "실용성"},
+    "자기계발": {"동기부여", "실용성", "희망"},
+    "인문/교양": {"사유", "깊이", "통찰"},
+    "과학": {"정보성", "미래", "호기심"},
+    "역사": {"몰입", "사실성", "깊이"},
+    "에세이": {"감성", "잔잔함", "따뜻함"},
+}
+
+
+KEYWORD_TO_MOOD_TAGS = {
+    "범죄": {"긴장감", "어두움"},
+    "모험": {"모험", "속도감"},
+    "멜로": {"감성", "따뜻함"},
+    "사랑": {"감성", "따뜻함"},
+    "k-pop": {"강렬함", "유쾌함"},
+    "록": {"강렬함", "속도감"},
+    "발라드": {"감성", "잔잔함"},
+    "힙합": {"강렬함", "속도감"},
+    "재즈": {"잔잔함", "감성"},
+}
+
+if "show_persona_survey" not in st.session_state:
+    st.session_state.show_persona_survey = False
+
+if "persona_answers" not in st.session_state:
+    st.session_state.persona_answers = {}
+
+
 @st.cache_data
 def load_and_process_data(file_name, file_mtime):
     file_path = BASE_DIR / file_name
@@ -75,14 +115,235 @@ def render_recommendation_tabs(df, content_key):
             show_dataframe(get_display_df(df.sample(min(10, len(df)))))
 
 
-st.title("콘텐츠 통합 추천 플랫폼")
-
-main_tab1, main_tab2, main_tab3 = st.tabs([" 도서", " 영화", " 음악"])
-
-
 def get_file_mtime(file_name):
     file_path = BASE_DIR / file_name
     return file_path.stat().st_mtime if file_path.exists() else 0
+
+
+def get_persona_recommendations(df, answers):
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    rec_df = df.copy()
+
+    def to_numeric_column(frame, column_name):
+        if column_name in frame.columns:
+            return pd.to_numeric(frame[column_name], errors="coerce").fillna(0)
+        return pd.Series([0] * len(frame), index=frame.index, dtype="float64")
+
+    rec_df["salesPoint"] = to_numeric_column(rec_df, "salesPoint")
+    rec_df["score"] = to_numeric_column(rec_df, "score")
+    rec_df["year"] = to_numeric_column(rec_df, "year")
+
+    selected_genres = set(answers.get("선호장르", []))
+
+    def build_user_mood_tags(genres):
+        mood_tags = set()
+        for genre in genres:
+            mood_tags.update(GENRE_TO_MOOD_TAGS.get(genre, set()))
+            mood_tags.add(str(genre).lower())
+        return mood_tags
+
+    def extract_item_mood_tags(genre_text, title_text):
+        text = f"{genre_text} {title_text}".lower()
+        tags = set()
+
+        for genre_name, mood_set in GENRE_TO_MOOD_TAGS.items():
+            if genre_name.lower() in text:
+                tags.update(mood_set)
+
+        for keyword, mood_set in KEYWORD_TO_MOOD_TAGS.items():
+            if keyword in text:
+                tags.update(mood_set)
+
+         # 태그로 장르명이나 제목에서 추출된 단어를 태그로 활용하는 방법을 사용함
+        if not tags:
+            tags.add("기본")
+        return tags
+
+    user_mood_tags = build_user_mood_tags(selected_genres)
+
+    def genre_match_score(genre_text, title_text):
+        if not user_mood_tags:
+            return 0.5
+
+        item_tags = extract_item_mood_tags(genre_text, title_text)
+        matched = user_mood_tags.intersection(item_tags)
+        return len(matched) / max(len(user_mood_tags), 1)
+
+    if "genre" in rec_df.columns:
+        rec_df["genre_match"] = rec_df.apply(
+            lambda row: genre_match_score(row.get("genre", ""), row.get("title", "")),
+            axis=1,
+        )
+    else:
+        rec_df["genre_match"] = 0.0
+    rec_df["popularity_score"] = rec_df["salesPoint"].rank(pct=True)
+    rec_df["rating_score"] = rec_df["score"].rank(pct=True)
+    rec_df["freshness_score"] = rec_df["year"].rank(pct=True)
+
+    weights = {
+        "genre": 0.4,
+        "popularity": 0.2,
+        "rating": 0.2,
+        "freshness": 0.2,
+    }
+
+    if answers.get("작품성향") == "인기작 위주":
+        weights["popularity"] += 0.2
+        weights["freshness"] -= 0.1
+        weights["rating"] -= 0.1
+    elif answers.get("작품성향") == "새로운 작품 위주":
+        weights["freshness"] += 0.2
+        weights["popularity"] -= 0.1
+        weights["rating"] -= 0.1
+
+    important = answers.get("중요기준")
+    if important == "평점":
+        weights["rating"] += 0.2
+        weights["genre"] -= 0.1
+        weights["freshness"] -= 0.1
+    elif important == "최신성":
+        weights["freshness"] += 0.2
+        weights["genre"] -= 0.1
+        weights["rating"] -= 0.1
+    elif important in ["줄거리(주제)", "분위기"]:
+        weights["genre"] += 0.2
+        weights["popularity"] -= 0.1
+        weights["freshness"] -= 0.1
+
+    
+    for key in weights:
+        weights[key] = max(weights[key], 0.05)
+
+    total_weight = sum(weights.values())
+    if total_weight > 0:
+        weights = {k: v / total_weight for k, v in weights.items()}
+
+    rec_df["persona_score"] = (
+        rec_df["genre_match"] * weights["genre"]
+        + rec_df["popularity_score"] * weights["popularity"]
+        + rec_df["rating_score"] * weights["rating"]
+        + rec_df["freshness_score"] * weights["freshness"]
+    )
+
+    return rec_df.sort_values(by="persona_score", ascending=False).head(10)
+
+
+def render_persona_recommendations(answers):
+    df_book = load_and_process_data("book_data.csv", get_file_mtime("book_data.csv"))
+    df_movie = load_and_process_data("movie_data.csv", get_file_mtime("movie_data.csv"))
+    df_music = load_and_process_data("music_data.csv", get_file_mtime("music_data.csv"))
+
+    rec_book = get_persona_recommendations(df_book, answers)
+    rec_movie = get_persona_recommendations(df_movie, answers)
+    rec_music = get_persona_recommendations(df_music, answers)
+
+    st.markdown("#### 설문 기반 맞춤 추천 결과")
+
+    result_tab1, result_tab2, result_tab3 = st.tabs([" 도서 추천", " 영화 추천", " 음악 추천"])
+
+    with result_tab1:
+        if not rec_book.empty:
+            show_dataframe(get_display_df(rec_book))
+        else:
+            st.info("도서 추천 결과를 만들 수 없습니다.")
+
+    with result_tab2:
+        if not rec_movie.empty:
+            show_dataframe(get_display_df(rec_movie))
+        else:
+            st.info("영화 추천 결과를 만들 수 없습니다.")
+
+    with result_tab3:
+        if not rec_music.empty:
+            show_dataframe(get_display_df(rec_music))
+        else:
+            st.info("음악 추천 결과를 만들 수 없습니다.")
+
+
+title_col, button_col = st.columns([6, 1])
+with title_col:
+    st.title("콘텐츠 통합 추천 플랫폼")
+
+with button_col:
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("사용자 맞춤 추천 콘텐츠 설문", use_container_width=True):
+        st.session_state.show_persona_survey = not st.session_state.show_persona_survey
+
+
+if st.session_state.show_persona_survey:
+    with st.container(border=True):
+        st.subheader("사용자 맞춤 추천 콘텐츠 설문")
+        with st.form("persona_survey_form"):
+            q2 = st.multiselect(
+                "1. 평소 선호하는 장르는 무엇인가요?",
+                [
+                    "소설",
+                    "경제/경영",
+                    "자기계발",
+                    "인문/교양",
+                    "과학",
+                    "역사",
+                    "에세이",
+                    "로맨스",
+                    "스릴러",
+                    "SF",
+                    "코미디",
+                    "드라마",
+                    "액션",
+                    "판타지",
+                    "애니메이션",
+                    "공포",
+                    "미스터리",
+                ],
+                key="survey_q2",
+            )
+
+            q3 = st.radio(
+                "2. 인기작과 새로운 작품 중 무엇을 더 선호하나요?",
+                ["인기작 위주", "반반", "새로운 작품 위주"],
+                index=None,
+                key="survey_q3",
+            )
+
+            q4 = st.radio(
+                "3. 콘텐츠를 고를 때 가장 중요한 기준은?",
+                ["평점", "줄거리(주제)", "분위기", "최신성"],
+                index=None,
+                key="survey_q4",
+            )
+
+            submitted = st.form_submit_button("설문 저장", type="primary")
+            if submitted:
+                if None in [q3, q4]:
+                    st.warning("2, 3번 문항을 모두 선택해주세요.")
+                else:
+                    st.session_state.persona_answers = {
+                        "선호장르": q2,
+                        "작품성향": q3,
+                        "중요기준": q4,
+                    }
+                    st.success("설문 결과가 저장되었습니다.")
+
+        action_col1, action_col2 = st.columns(2)
+        with action_col1:
+            if st.button("설문 다시 하기", use_container_width=True):
+                st.session_state.persona_answers = {}
+                for key in ["survey_q2", "survey_q3", "survey_q4"]:
+                    st.session_state.pop(key, None)
+                st.rerun()
+
+        with action_col2:
+            if st.button("설문 종료", use_container_width=True):
+                st.session_state.show_persona_survey = False
+                st.rerun()
+
+        if st.session_state.persona_answers:
+            st.caption(f"현재 저장된 설문: {st.session_state.persona_answers}")
+            render_persona_recommendations(st.session_state.persona_answers)
+
+main_tab1, main_tab2, main_tab3 = st.tabs([" 도서", " 영화", " 음악"])
 
 
 with main_tab1:
