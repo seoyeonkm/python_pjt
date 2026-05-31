@@ -1,14 +1,36 @@
 import os
+from pathlib import Path
 
 import pandas as pd
 import requests
 
 
+BASE_DIR = Path(__file__).resolve().parent
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 TARGET_COUNT = 100
 
 TMDB_DISCOVER_URL = "https://api.themoviedb.org/3/discover/movie"
 TMDB_GENRE_URL = "https://api.themoviedb.org/3/genre/movie/list"
+
+
+def load_tmdb_api_key():
+    api_key = os.getenv("TMDB_API_KEY")
+    if api_key:
+        return api_key
+
+    env_path = BASE_DIR / ".env"
+    if not env_path.exists():
+        return None
+
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        if key.strip() == "TMDB_API_KEY":
+            return value.strip().strip('"').strip("'")
+
+    return None
 
 
 def get_genre_map(language="ko-KR"):
@@ -84,6 +106,20 @@ def get_tmdb_movies(target_count=TARGET_COUNT, language="ko-KR"):
     return pd.DataFrame(all_movies)
 
 
-df = get_tmdb_movies()
-df.to_csv("movie_data.csv", index=False, encoding="utf-8-sig")
-print("--- 영화 데이터 수집 완료 ---")
+def main():
+    global TMDB_API_KEY
+
+    TMDB_API_KEY = load_tmdb_api_key()
+    if not TMDB_API_KEY:
+        raise ValueError(
+            "TMDB_API_KEY가 없습니다. PowerShell에서 $env:TMDB_API_KEY='키값' 설정 또는 .env 파일에 TMDB_API_KEY=키값을 추가해주세요."
+        )
+
+    df = get_tmdb_movies()
+    output_path = BASE_DIR / "movie_data.csv"
+    df.to_csv(output_path, index=False, encoding="utf-8-sig")
+    print(f"--- 영화 데이터 수집 완료: {output_path} ---")
+
+
+if __name__ == "__main__":
+    main()

@@ -9,7 +9,7 @@ st.set_page_config(page_title="콘텐츠 통합 추천 플랫폼", layout="wide"
 
 
 @st.cache_data
-def load_and_process_data(file_name):
+def load_and_process_data(file_name, file_mtime):
     file_path = BASE_DIR / file_name
     if file_path.exists():
         df = pd.read_csv(file_path)
@@ -80,8 +80,13 @@ st.title("콘텐츠 통합 추천 플랫폼")
 main_tab1, main_tab2, main_tab3 = st.tabs([" 도서", " 영화", " 음악"])
 
 
+def get_file_mtime(file_name):
+    file_path = BASE_DIR / file_name
+    return file_path.stat().st_mtime if file_path.exists() else 0
+
+
 with main_tab1:
-    df_book = load_and_process_data("book_data.csv")
+    df_book = load_and_process_data("book_data.csv", get_file_mtime("book_data.csv"))
     if df_book is not None:
         render_recommendation_tabs(df_book, "book")
     else:
@@ -89,14 +94,14 @@ with main_tab1:
 
 
 with main_tab2:
-    df_movie = load_and_process_data("movie_data.csv")
+    df_movie = load_and_process_data("movie_data.csv", get_file_mtime("movie_data.csv"))
     if df_movie is not None:
         render_recommendation_tabs(df_movie, "movie")
     else:
         st.error("영화 데이터를 찾을 수 없습니다.")
 
 with main_tab3:
-    df_music = load_and_process_data("music_data.csv")
+    df_music = load_and_process_data("music_data.csv", get_file_mtime("music_data.csv"))
     if df_music is not None:
         render_recommendation_tabs(df_music, "music")
     else:
