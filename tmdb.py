@@ -13,6 +13,7 @@ TARGET_COUNT = 100
 TMDB_DISCOVER_URL = "https://api.themoviedb.org/3/discover/movie"
 TMDB_GENRE_URL = "https://api.themoviedb.org/3/genre/movie/list"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
+TITLE_PATTERN = re.compile(r"^[A-Za-z0-9가-힣\s\-:,.!?\'\"()&/]+$")
 
 
 def load_tmdb_api_key():
@@ -98,6 +99,7 @@ def get_tmdb_movies(target_count=TARGET_COUNT, language="ko-KR"):
             popularity = float(item.get("popularity") or 0)
             poster_path = item.get("poster_path") or ""
             poster_url = f"{TMDB_IMAGE_BASE_URL}{poster_path}" if poster_path else ""
+            overview = str(item.get("overview") or "").strip()
 
             all_movies.append(
                 {
@@ -107,6 +109,7 @@ def get_tmdb_movies(target_count=TARGET_COUNT, language="ko-KR"):
                     "score": round(vote_average, 1),
                     "salesPoint": int(popularity * 1000),
                     "posterUrl": poster_url,
+                    "overview": overview,
                 }
             )
         

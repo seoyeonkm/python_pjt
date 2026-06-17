@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 import re
-import os
-import requests
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -53,6 +51,9 @@ if "persona_answers" not in st.session_state:
 if "expanded_movie_plots" not in st.session_state:
     st.session_state.expanded_movie_plots = {}
 
+if "random_recommendations" not in st.session_state:
+    st.session_state.random_recommendations = {}
+
 
 @st.cache_data
 def load_and_process_data(file_name, file_mtime):
@@ -79,72 +80,6 @@ def get_display_df(data):
     return d
 
 
-def load_tmdb_api_key():
-    api_key = os.getenv("TMDB_API_KEY")
-    if api_key:
-        return api_key
-
-    env_path = BASE_DIR / ".env"
-    if not env_path.exists():
-        return None
-
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        if key.strip() == "TMDB_API_KEY":
-            return value.strip().strip('"').strip("'")
-
-    return None
-
-
-@st.cache_data(show_spinner=False)
-def search_tmdb_overview(title, year):
-    api_key = load_tmdb_api_key()
-    if not api_key:
-        return "TMDB_API_KEY가 없어 줄거리를 불러올 수 없습니다."
-
-    base_url = "https://api.themoviedb.org/3/search/movie"
-
-    params = {
-        "api_key": api_key,
-        "query": str(title),
-        "language": "ko-KR",
-        "include_adult": "false",
-    }
-
-    if pd.notna(year):
-        year_text = str(year).strip()
-        if year_text.isdigit():
-            params["year"] = year_text
-
-    try:
-        response = requests.get(base_url, params=params, timeout=12)
-        response.raise_for_status()
-        results = response.json().get("results", [])
-
-        for item in results:
-            overview = str(item.get("overview") or "").strip()
-            if overview:
-                return overview
-
-        # year 조건에서 못 찾은 경우, 조건을 풀고 한 번 더 검색
-        if "year" in params:
-            params.pop("year", None)
-            retry = requests.get(base_url, params=params, timeout=12)
-            retry.raise_for_status()
-            retry_results = retry.json().get("results", [])
-            for item in retry_results:
-                overview = str(item.get("overview") or "").strip()
-                if overview:
-                    return overview
-
-        return "줄거리 정보가 없습니다."
-    except requests.RequestException:
-        return "TMDB 연결 오류로 줄거리를 불러오지 못했습니다."
-
-
 def get_book_display_df(data):
     d = data[['coverUrl', 'title', 'genre', 'year']].copy()
     d.columns = ['표지', '제목', '장르', '발행년도']
@@ -159,7 +94,11 @@ def get_music_display_df(data):
 
 def get_movie_display_df(data):
     d = data[['posterUrl', 'title', 'genre', 'year']].copy()
-    d.columns = ['포스터', '제목', '장르', '발행년도']
+    if 'overview' in data.columns:
+        d['overview'] = data['overview'].fillna('').astype(str)
+    else:
+        d['overview'] = ''
+    d.columns = ['포스터', '제목', '장르', '발행년도', '줄거리']
     return d
 
 
@@ -238,7 +177,9 @@ def show_movie_cards(df, key_prefix="movie"):
                     st.rerun()
 
                 if st.session_state.expanded_movie_plots.get(movie_key, False):
-                    overview = search_tmdb_overview(title, year)
+                    overview = str(row.get("줄거리", "")).strip()
+                    if not overview:
+                        overview = "줄거리 정보가 없습니다."
                     st.info(overview)
 
                 card_index += 1
@@ -295,11 +236,16 @@ def render_recommendation_tabs(df, content_key):
     with sub_tab3:
         if st.button("추천 받기", key=f"random_{content_key}"):
             random_df = df.sample(min(10, len(df)))
-            if content_key == "book" and "coverUrl" in df.columns:
+            st.session_state.random_recommendations[content_key] = random_df.to_dict("records")
+
+        random_records = st.session_state.random_recommendations.get(content_key)
+        if random_records:
+            random_df = pd.DataFrame(random_records)
+            if content_key == "book" and "coverUrl" in random_df.columns:
                 show_book_cards(get_book_display_df(random_df))
             elif content_key == "music":
                 show_music_cards(get_music_display_df(random_df))
-            elif content_key == "movie" and "posterUrl" in df.columns:
+            elif content_key == "movie" and "posterUrl" in random_df.columns:
                 show_movie_cards(get_movie_display_df(random_df), key_prefix=f"{content_key}_random")
             else:
                 show_dataframe(get_display_df(random_df))
