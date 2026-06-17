@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 import re
+import os
+import requests
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -48,6 +50,9 @@ if "show_persona_survey" not in st.session_state:
 if "persona_answers" not in st.session_state:
     st.session_state.persona_answers = {}
 
+if "expanded_movie_plots" not in st.session_state:
+    st.session_state.expanded_movie_plots = {}
+
 
 @st.cache_data
 def load_and_process_data(file_name, file_mtime):
@@ -72,6 +77,72 @@ def get_display_df(data):
     
     d.columns = ['제목', '장르', '발행년도']
     return d
+
+
+def load_tmdb_api_key():
+    api_key = os.getenv("TMDB_API_KEY")
+    if api_key:
+        return api_key
+
+    env_path = BASE_DIR / ".env"
+    if not env_path.exists():
+        return None
+
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        if key.strip() == "TMDB_API_KEY":
+            return value.strip().strip('"').strip("'")
+
+    return None
+
+
+@st.cache_data(show_spinner=False)
+def search_tmdb_overview(title, year):
+    api_key = load_tmdb_api_key()
+    if not api_key:
+        return "TMDB_API_KEY가 없어 줄거리를 불러올 수 없습니다."
+
+    base_url = "https://api.themoviedb.org/3/search/movie"
+
+    params = {
+        "api_key": api_key,
+        "query": str(title),
+        "language": "ko-KR",
+        "include_adult": "false",
+    }
+
+    if pd.notna(year):
+        year_text = str(year).strip()
+        if year_text.isdigit():
+            params["year"] = year_text
+
+    try:
+        response = requests.get(base_url, params=params, timeout=12)
+        response.raise_for_status()
+        results = response.json().get("results", [])
+
+        for item in results:
+            overview = str(item.get("overview") or "").strip()
+            if overview:
+                return overview
+
+        # year 조건에서 못 찾은 경우, 조건을 풀고 한 번 더 검색
+        if "year" in params:
+            params.pop("year", None)
+            retry = requests.get(base_url, params=params, timeout=12)
+            retry.raise_for_status()
+            retry_results = retry.json().get("results", [])
+            for item in retry_results:
+                overview = str(item.get("overview") or "").strip()
+                if overview:
+                    return overview
+
+        return "줄거리 정보가 없습니다."
+    except requests.RequestException:
+        return "TMDB 연결 오류로 줄거리를 불러오지 못했습니다."
 
 
 def get_book_display_df(data):
@@ -139,9 +210,10 @@ def show_music_cards(df):
     
 
 
-def show_movie_cards(df):
+def show_movie_cards(df, key_prefix="movie"):
 
     rows = [df.iloc[i:i+5] for i in range(0, len(df), 5)]
+    card_index = 0
 
     for row_df in rows:
         cols = st.columns(5)
@@ -152,6 +224,24 @@ def show_movie_cards(df):
                 st.markdown(f"**{row['제목']}**")
                 st.caption(row["장르"])
                 st.caption(str(row["발행년도"]))
+
+                title = str(row.get("제목", ""))
+                year = row.get("발행년도", "")
+                movie_key = f"{title}::{year}"
+                button_key = f"{key_prefix}_plot_btn_{card_index}_{movie_key}"
+
+                is_open = st.session_state.expanded_movie_plots.get(movie_key, False)
+                button_label = "줄거리 닫기" if is_open else "줄거리 보기"
+
+                if st.button(button_label, key=button_key, use_container_width=True):
+                    st.session_state.expanded_movie_plots[movie_key] = not is_open
+                    st.rerun()
+
+                if st.session_state.expanded_movie_plots.get(movie_key, False):
+                    overview = search_tmdb_overview(title, year)
+                    st.info(overview)
+
+                card_index += 1
 
         
 
@@ -177,7 +267,7 @@ def render_recommendation_tabs(df, content_key):
         elif content_key == "music":
             show_music_cards(get_music_display_df(top10))
         elif content_key == "movie" and "posterUrl" in df.columns:
-            show_movie_cards(get_movie_display_df(top10))
+            show_movie_cards(get_movie_display_df(top10), key_prefix=f"{content_key}_top")
         else:
             show_dataframe(get_display_df(top10))
 
@@ -188,7 +278,7 @@ def render_recommendation_tabs(df, content_key):
             genre = st.selectbox("장르 선택", genre_options, key=f"genre_{content_key}")
             filtered_df = df[df['genre'].apply(lambda x: has_genre(x, genre))].sort_values(by='salesPoint', ascending=False).head(10)
             if "posterUrl" in df.columns:
-                show_movie_cards(get_movie_display_df(filtered_df))
+                show_movie_cards(get_movie_display_df(filtered_df), key_prefix=f"{content_key}_genre")
             else:
                 show_dataframe(get_display_df(filtered_df))
         # else문에서는 book과 music은 genre가 단일값이므로 기존 방식으로 필터링
@@ -210,7 +300,7 @@ def render_recommendation_tabs(df, content_key):
             elif content_key == "music":
                 show_music_cards(get_music_display_df(random_df))
             elif content_key == "movie" and "posterUrl" in df.columns:
-                show_movie_cards(get_movie_display_df(random_df))
+                show_movie_cards(get_movie_display_df(random_df), key_prefix=f"{content_key}_random")
             else:
                 show_dataframe(get_display_df(random_df))
 
@@ -355,7 +445,7 @@ def render_persona_recommendations(answers):
     with result_tab2:
         if not rec_movie.empty:
             if "posterUrl" in rec_movie.columns:
-                show_movie_cards(get_movie_display_df(rec_movie))
+                show_movie_cards(get_movie_display_df(rec_movie), key_prefix="persona_movie")
             else:
                 show_dataframe(get_display_df(rec_movie))
         else:
