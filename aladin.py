@@ -46,7 +46,8 @@ def get_balanced_bestseller():
                 "score": item.get("customerReviewRank", 0) / 2 if item.get("customerReviewRank", 0) > 5 else item.get("customerReviewRank", 0),
                 "category": "book",
                 "genre": genre_name,
-                "salesPoint": item.get("salesPoint", 0) 
+                "salesPoint": item.get("salesPoint", 0),
+                "coverUrl": item.get("cover") or "",
             })
         time.sleep(1) 
         

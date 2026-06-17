@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from pathlib import Path
+import re
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -53,6 +54,12 @@ def load_and_process_data(file_name, file_mtime):
     file_path = BASE_DIR / file_name
     if file_path.exists():
         df = pd.read_csv(file_path)
+
+        if file_name == "movie_data.csv" and "title" in df.columns:
+            # 한국어/영어/숫자/기본 문장부호로만 구성된 제목만 유지
+            title_pattern = re.compile(r"^[A-Za-z0-9가-힣\s\-:,.!?\'\"()&/]+$")
+            df = df[df["title"].astype(str).str.match(title_pattern, na=False)].copy()
+
         # salespoint 높은 순으로 top10 정렬하는 코드에요
         df['salesPoint'] = pd.to_numeric(df['salesPoint'], errors='coerce').fillna(0)
 
@@ -67,6 +74,24 @@ def get_display_df(data):
     return d
 
 
+def get_book_display_df(data):
+    d = data[['coverUrl', 'title', 'genre', 'year']].copy()
+    d.columns = ['표지', '제목', '장르', '발행년도']
+    return d
+
+
+def get_music_display_df(data):
+    d = data[['artworkUrl', 'title', 'genre', 'year']].copy()
+    d.columns = ['앨범', '제목', '장르', '발행년도']
+    return d
+
+
+def get_movie_display_df(data):
+    d = data[['posterUrl', 'title', 'genre', 'year']].copy()
+    d.columns = ['포스터', '제목', '장르', '발행년도']
+    return d
+
+
 def show_dataframe(df):
     st.dataframe(
         df,
@@ -77,6 +102,48 @@ def show_dataframe(df):
             "장르": st.column_config.TextColumn("장르", width="small"),
             "발행년도": st.column_config.NumberColumn("발행년도", format="%d")
         }
+    )
+
+
+def show_book_dataframe(df):
+    st.dataframe(
+        df,
+        width='stretch',
+        hide_index=True,
+        column_config={
+            "표지": st.column_config.ImageColumn("표지", width="small"),
+            "제목": st.column_config.TextColumn("제목", width="large"),
+            "장르": st.column_config.TextColumn("장르", width="small"),
+            "발행년도": st.column_config.NumberColumn("발행년도", format="%d"),
+        },
+    )
+
+
+def show_music_dataframe(df):
+    st.dataframe(
+        df,
+        width='stretch',
+        hide_index=True,
+        column_config={
+            "앨범": st.column_config.ImageColumn("앨범", width="small"),
+            "제목": st.column_config.TextColumn("제목", width="large"),
+            "장르": st.column_config.TextColumn("장르", width="small"),
+            "발행년도": st.column_config.NumberColumn("발행년도", format="%d"),
+        },
+    )
+
+
+def show_movie_dataframe(df):
+    st.dataframe(
+        df,
+        width='stretch',
+        hide_index=True,
+        column_config={
+            "포스터": st.column_config.ImageColumn("포스터", width="small"),
+            "제목": st.column_config.TextColumn("제목", width="large"),
+            "장르": st.column_config.TextColumn("장르", width="small"),
+            "발행년도": st.column_config.NumberColumn("발행년도", format="%d"),
+        },
     )
 
 
@@ -95,7 +162,15 @@ def render_recommendation_tabs(df, content_key):
     sub_tab1, sub_tab2, sub_tab3 = st.tabs([" 전체 TOP 10", " 장르별 정밀 추천", " 랜덤 발견"])
 
     with sub_tab1:
-        show_dataframe(get_display_df(df.sort_values(by='salesPoint', ascending=False).head(10)))
+        top10 = df.sort_values(by='salesPoint', ascending=False).head(10)
+        if content_key == "book" and "coverUrl" in df.columns:
+            show_book_dataframe(get_book_display_df(top10))
+        elif content_key == "music":
+            show_music_dataframe(get_music_display_df(top10))
+        elif content_key == "movie" and "posterUrl" in df.columns:
+            show_movie_dataframe(get_movie_display_df(top10))
+        else:
+            show_dataframe(get_display_df(top10))
 
     with sub_tab2:
         # if문에서는 영화는 genre 데이터 자체가 복수값이므로, 장르 선택 시 해당 장르가 포함된 영화들을 필터링
@@ -103,16 +178,32 @@ def render_recommendation_tabs(df, content_key):
             genre_options = get_unique_genres(df)
             genre = st.selectbox("장르 선택", genre_options, key=f"genre_{content_key}")
             filtered_df = df[df['genre'].apply(lambda x: has_genre(x, genre))].sort_values(by='salesPoint', ascending=False).head(10)
-            show_dataframe(get_display_df(filtered_df))
+            if "posterUrl" in df.columns:
+                show_movie_dataframe(get_movie_display_df(filtered_df))
+            else:
+                show_dataframe(get_display_df(filtered_df))
         # else문에서는 book과 music은 genre가 단일값이므로 기존 방식으로 필터링
         else:
             genre = st.selectbox("장르 선택", df['genre'].dropna().unique(), key=f"genre_{content_key}")
             filtered_df = df[df['genre'] == genre].sort_values(by='salesPoint', ascending=False).head(10)
-            show_dataframe(get_display_df(filtered_df))
+            if content_key == "book" and "coverUrl" in df.columns:
+                show_book_dataframe(get_book_display_df(filtered_df))
+            elif content_key == "music":
+                show_music_dataframe(get_music_display_df(filtered_df))
+            else:
+                show_dataframe(get_display_df(filtered_df))
 
     with sub_tab3:
         if st.button("추천 받기", key=f"random_{content_key}"):
-            show_dataframe(get_display_df(df.sample(min(10, len(df)))))
+            random_df = df.sample(min(10, len(df)))
+            if content_key == "book" and "coverUrl" in df.columns:
+                show_book_dataframe(get_book_display_df(random_df))
+            elif content_key == "music":
+                show_music_dataframe(get_music_display_df(random_df))
+            elif content_key == "movie" and "posterUrl" in df.columns:
+                show_movie_dataframe(get_movie_display_df(random_df))
+            else:
+                show_dataframe(get_display_df(random_df))
 
 
 def get_file_mtime(file_name):
@@ -245,19 +336,25 @@ def render_persona_recommendations(answers):
 
     with result_tab1:
         if not rec_book.empty:
-            show_dataframe(get_display_df(rec_book))
+            if "coverUrl" in rec_book.columns:
+                show_book_dataframe(get_book_display_df(rec_book))
+            else:
+                show_dataframe(get_display_df(rec_book))
         else:
             st.info("도서 추천 결과를 만들 수 없습니다.")
 
     with result_tab2:
         if not rec_movie.empty:
-            show_dataframe(get_display_df(rec_movie))
+            if "posterUrl" in rec_movie.columns:
+                show_movie_dataframe(get_movie_display_df(rec_movie))
+            else:
+                show_dataframe(get_display_df(rec_movie))
         else:
             st.info("영화 추천 결과를 만들 수 없습니다.")
 
     with result_tab3:
         if not rec_music.empty:
-            show_dataframe(get_display_df(rec_music))
+            show_music_dataframe(get_music_display_df(rec_music))
         else:
             st.info("음악 추천 결과를 만들 수 없습니다.")
 

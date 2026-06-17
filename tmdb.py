@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import re
 
 import pandas as pd
 import requests
@@ -11,6 +12,7 @@ TARGET_COUNT = 100
 
 TMDB_DISCOVER_URL = "https://api.themoviedb.org/3/discover/movie"
 TMDB_GENRE_URL = "https://api.themoviedb.org/3/genre/movie/list"
+TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
 
 def load_tmdb_api_key():
@@ -80,6 +82,10 @@ def get_tmdb_movies(target_count=TARGET_COUNT, language="ko-KR"):
             if movie_id in seen_ids:
                 continue
 
+            title = item.get("title") or "제목 없음"
+            if not TITLE_PATTERN.match(title):
+                continue
+
             seen_ids.add(movie_id)
 
             release_date = str(item.get("release_date") or "")
@@ -90,14 +96,17 @@ def get_tmdb_movies(target_count=TARGET_COUNT, language="ko-KR"):
 
             vote_average = float(item.get("vote_average") or 0)
             popularity = float(item.get("popularity") or 0)
+            poster_path = item.get("poster_path") or ""
+            poster_url = f"{TMDB_IMAGE_BASE_URL}{poster_path}" if poster_path else ""
 
             all_movies.append(
                 {
-                    "title": item.get("title") or "제목 없음",
+                    "title": title,
                     "genre": genre,
                     "year": year,
                     "score": round(vote_average, 1),
                     "salesPoint": int(popularity * 1000),
+                    "posterUrl": poster_url,
                 }
             )
         
