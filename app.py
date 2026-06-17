@@ -103,48 +103,57 @@ def show_dataframe(df):
             "발행년도": st.column_config.NumberColumn("발행년도", format="%d")
         }
     )
+    
 
 
-def show_book_dataframe(df):
-    st.dataframe(
-        df,
-        width='stretch',
-        hide_index=True,
-        column_config={
-            "표지": st.column_config.ImageColumn("표지", width="small"),
-            "제목": st.column_config.TextColumn("제목", width="large"),
-            "장르": st.column_config.TextColumn("장르", width="small"),
-            "발행년도": st.column_config.NumberColumn("발행년도", format="%d"),
-        },
-    )
+def show_book_cards(df):
+    rows = [df.iloc[i:i+5] for i in range(0, len(df), 5)]
+
+    for row_df in rows:
+        cols = st.columns(5)
+
+        for col, (_, row) in zip(cols, row_df.iterrows()):
+            with col:
+                if pd.notna(row["표지"]):
+                    st.image(row["표지"],width=200)
+                else:
+                    st.image("image/no_image.png", width=200)
+                st.markdown(f"**{row['제목']}**")
+                st.caption(row["장르"])
+                st.caption(str(row["발행년도"]))
 
 
-def show_music_dataframe(df):
-    st.dataframe(
-        df,
-        width='stretch',
-        hide_index=True,
-        column_config={
-            "앨범": st.column_config.ImageColumn("앨범", width="small"),
-            "제목": st.column_config.TextColumn("제목", width="large"),
-            "장르": st.column_config.TextColumn("장르", width="small"),
-            "발행년도": st.column_config.NumberColumn("발행년도", format="%d"),
-        },
-    )
+def show_music_cards(df):
+    rows = [df.iloc[i:i+5] for i in range(0, len(df), 5)]
+
+    for row_df in rows:
+        cols = st.columns(5)
+
+        for col, (_, row) in zip(cols, row_df.iterrows()):
+            with col:
+                st.image(row["앨범"], width=200)
+                st.markdown(f"**{row['제목']}**")
+                st.caption(row["장르"])
+                st.caption(str(row["발행년도"]))
+    
+    
 
 
-def show_movie_dataframe(df):
-    st.dataframe(
-        df,
-        width='stretch',
-        hide_index=True,
-        column_config={
-            "포스터": st.column_config.ImageColumn("포스터", width="small"),
-            "제목": st.column_config.TextColumn("제목", width="large"),
-            "장르": st.column_config.TextColumn("장르", width="small"),
-            "발행년도": st.column_config.NumberColumn("발행년도", format="%d"),
-        },
-    )
+def show_movie_cards(df):
+
+    rows = [df.iloc[i:i+5] for i in range(0, len(df), 5)]
+
+    for row_df in rows:
+        cols = st.columns(5)
+
+        for col, (_, row) in zip(cols, row_df.iterrows()):
+            with col:
+                st.image(row["포스터"], width=200)
+                st.markdown(f"**{row['제목']}**")
+                st.caption(row["장르"])
+                st.caption(str(row["발행년도"]))
+
+        
 
 
 def get_unique_genres(df):
@@ -164,11 +173,11 @@ def render_recommendation_tabs(df, content_key):
     with sub_tab1:
         top10 = df.sort_values(by='salesPoint', ascending=False).head(10)
         if content_key == "book" and "coverUrl" in df.columns:
-            show_book_dataframe(get_book_display_df(top10))
+            show_book_cards(get_book_display_df(top10))
         elif content_key == "music":
-            show_music_dataframe(get_music_display_df(top10))
+            show_music_cards(get_music_display_df(top10))
         elif content_key == "movie" and "posterUrl" in df.columns:
-            show_movie_dataframe(get_movie_display_df(top10))
+            show_movie_cards(get_movie_display_df(top10))
         else:
             show_dataframe(get_display_df(top10))
 
@@ -179,7 +188,7 @@ def render_recommendation_tabs(df, content_key):
             genre = st.selectbox("장르 선택", genre_options, key=f"genre_{content_key}")
             filtered_df = df[df['genre'].apply(lambda x: has_genre(x, genre))].sort_values(by='salesPoint', ascending=False).head(10)
             if "posterUrl" in df.columns:
-                show_movie_dataframe(get_movie_display_df(filtered_df))
+                show_movie_cards(get_movie_display_df(filtered_df))
             else:
                 show_dataframe(get_display_df(filtered_df))
         # else문에서는 book과 music은 genre가 단일값이므로 기존 방식으로 필터링
@@ -187,9 +196,9 @@ def render_recommendation_tabs(df, content_key):
             genre = st.selectbox("장르 선택", df['genre'].dropna().unique(), key=f"genre_{content_key}")
             filtered_df = df[df['genre'] == genre].sort_values(by='salesPoint', ascending=False).head(10)
             if content_key == "book" and "coverUrl" in df.columns:
-                show_book_dataframe(get_book_display_df(filtered_df))
+                show_book_cards(get_book_display_df(filtered_df))
             elif content_key == "music":
-                show_music_dataframe(get_music_display_df(filtered_df))
+                show_music_cards(get_music_display_df(filtered_df))
             else:
                 show_dataframe(get_display_df(filtered_df))
 
@@ -197,11 +206,11 @@ def render_recommendation_tabs(df, content_key):
         if st.button("추천 받기", key=f"random_{content_key}"):
             random_df = df.sample(min(10, len(df)))
             if content_key == "book" and "coverUrl" in df.columns:
-                show_book_dataframe(get_book_display_df(random_df))
+                show_book_cards(get_book_display_df(random_df))
             elif content_key == "music":
-                show_music_dataframe(get_music_display_df(random_df))
+                show_music_cards(get_music_display_df(random_df))
             elif content_key == "movie" and "posterUrl" in df.columns:
-                show_movie_dataframe(get_movie_display_df(random_df))
+                show_movie_cards(get_movie_display_df(random_df))
             else:
                 show_dataframe(get_display_df(random_df))
 
@@ -337,7 +346,7 @@ def render_persona_recommendations(answers):
     with result_tab1:
         if not rec_book.empty:
             if "coverUrl" in rec_book.columns:
-                show_book_dataframe(get_book_display_df(rec_book))
+                show_book_cards(get_book_display_df(rec_book))
             else:
                 show_dataframe(get_display_df(rec_book))
         else:
@@ -346,7 +355,7 @@ def render_persona_recommendations(answers):
     with result_tab2:
         if not rec_movie.empty:
             if "posterUrl" in rec_movie.columns:
-                show_movie_dataframe(get_movie_display_df(rec_movie))
+                show_movie_cards(get_movie_display_df(rec_movie))
             else:
                 show_dataframe(get_display_df(rec_movie))
         else:
@@ -354,7 +363,7 @@ def render_persona_recommendations(answers):
 
     with result_tab3:
         if not rec_music.empty:
-            show_music_dataframe(get_music_display_df(rec_music))
+            show_music_cards(get_music_display_df(rec_music))
         else:
             st.info("음악 추천 결과를 만들 수 없습니다.")
 
