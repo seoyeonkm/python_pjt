@@ -3,43 +3,55 @@ import pandas as pd
 from pathlib import Path
 import re
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 st.set_page_config(page_title="콘텐츠 통합 추천 플랫폼", layout="wide")
 
 
 GENRE_TO_MOOD_TAGS = {
-    "액션": {"속도감", "긴장감", "강렬함", "모험"},
-    "스릴러": {"긴장감", "서스펜스", "어두움"},
-    "SF": {"미래", "상상력", "모험", "신비"},
-    "판타지": {"상상력", "신비", "모험"},
-    "코미디": {"유쾌함", "가벼움", "밝음"},
-    "드라마": {"감정", "몰입", "잔잔함"},
-    "로맨스": {"감성", "따뜻함", "잔잔함"},
-    "공포": {"긴장감", "어두움", "자극"},
-    "미스터리": {"추리", "긴장감", "몰입"},
-    "애니메이션": {"유쾌함", "상상력", "따뜻함"},
-    "소설": {"이야기", "몰입", "감정"},
-    "경제/경영": {"현실성", "정보성", "실용성"},
-    "자기계발": {"동기부여", "실용성", "희망"},
-    "인문/교양": {"사유", "깊이", "통찰"},
-    "과학": {"정보성", "미래", "호기심"},
-    "역사": {"몰입", "사실성", "깊이"},
-    "에세이": {"감성", "잔잔함", "따뜻함"},
+    "액션": {"긴장감"},
+    "스릴러": {"긴장감", "몰입"},
+    "SF": {"신비", "몰입"},
+    "판타지": {"신비"},
+    "코미디": {"유쾌함"},
+    "드라마": {"감성", "몰입"},
+    "로맨스": {"감성", "힐링"},
+    "공포": {"긴장감"},
+    "미스터리": {"긴장감", "몰입"},
+    "애니메이션": {"유쾌함", "힐링"},
+
+    "소설": {"몰입", "감성"},
+    "경제/경영": {"동기부여"},
+    "자기계발": {"동기부여"},
+    "인문": {"몰입"},
+    "사회": {"몰입"},
+    "과학": {"신비"},
+    "역사": {"몰입"},
+    "에세이": {"감성", "힐링"},
+    "IT/컴퓨터": {"동기부여"},
+}
+
+DISPLAY_MOOD_TO_TAG = {
+    "감성적인": "감성",
+    "긴장감 있는": "긴장감",
+    "유쾌한": "유쾌함",
+    "몰입감 있는": "몰입",
+    "신비로운": "신비",
+    "동기부여가 되는": "동기부여",
+    "힐링되는": "힐링",
 }
 
 
 KEYWORD_TO_MOOD_TAGS = {
-    "범죄": {"긴장감", "어두움"},
-    "모험": {"모험", "속도감"},
-    "멜로": {"감성", "따뜻함"},
-    "사랑": {"감성", "따뜻함"},
-    "k-pop": {"강렬함", "유쾌함"},
-    "록": {"강렬함", "속도감"},
-    "발라드": {"감성", "잔잔함"},
-    "힙합": {"강렬함", "속도감"},
-    "재즈": {"잔잔함", "감성"},
+    "범죄": {"긴장감"},
+    "모험": {"신비"},
+    "멜로": {"감성"},
+    "사랑": {"감성"},
+    "k-pop": {"유쾌함"},
+    "록": {"몰입"},
+    "발라드": {"감성"},
+    "힙합": {"몰입"},
+    "재즈": {"힐링"},
 }
 
 if "show_persona_survey" not in st.session_state:
@@ -271,14 +283,13 @@ def get_persona_recommendations(df, answers):
     rec_df["score"] = to_numeric_column(rec_df, "score")
     rec_df["year"] = to_numeric_column(rec_df, "year")
 
-    selected_genres = set(answers.get("선호장르", []))
-
-    def build_user_mood_tags(genres):
-        mood_tags = set()
-        for genre in genres:
-            mood_tags.update(GENRE_TO_MOOD_TAGS.get(genre, set()))
-            mood_tags.add(str(genre).lower())
-        return mood_tags
+    selected_moods = {
+    DISPLAY_MOOD_TO_TAG[m]
+    for m in answers.get("선호분위기", [])
+    if m in DISPLAY_MOOD_TO_TAG
+}
+    def build_user_mood_tags(moods):
+       return set(moods)
 
     def extract_item_mood_tags(genre_text, title_text):
         text = f"{genre_text} {title_text}".lower()
@@ -297,7 +308,7 @@ def get_persona_recommendations(df, answers):
             tags.add("기본")
         return tags
 
-    user_mood_tags = build_user_mood_tags(selected_genres)
+    user_mood_tags = build_user_mood_tags(selected_moods)
 
     def genre_match_score(genre_text, title_text):
         if not user_mood_tags:
@@ -419,25 +430,15 @@ if st.session_state.show_persona_survey:
         st.subheader("사용자 맞춤 추천 콘텐츠 설문")
         with st.form("persona_survey_form"):
             q2 = st.multiselect(
-                "1. 평소 선호하는 장르는 무엇인가요?",
+                "1. 어떤 분위기의 콘텐츠를 선호하시나요? (복수선택 가능)",
                 [
-                    "소설",
-                    "경제/경영",
-                    "자기계발",
-                    "인문/교양",
-                    "과학",
-                    "역사",
-                    "에세이",
-                    "로맨스",
-                    "스릴러",
-                    "SF",
-                    "코미디",
-                    "드라마",
-                    "액션",
-                    "판타지",
-                    "애니메이션",
-                    "공포",
-                    "미스터리",
+                    "감성적인",
+                    "긴장감 있는",
+                    "유쾌한",
+                    "몰입감 있는",
+                    "신비로운",
+                    "동기부여가 되는",
+                    "힐링되는",
                 ],
                 key="survey_q2",
             )
@@ -462,7 +463,7 @@ if st.session_state.show_persona_survey:
                     st.warning("2, 3번 문항을 모두 선택해주세요.")
                 else:
                     st.session_state.persona_answers = {
-                        "선호장르": q2,
+                        "선호분위기": q2,
                         "작품성향": q3,
                         "중요기준": q4,
                     }
@@ -506,6 +507,6 @@ with main_tab2:
 with main_tab3:
     df_music = load_and_process_data("music_data.csv", get_file_mtime("music_data.csv"))
     if df_music is not None:
-        render_recommendation_tabs(df_music, "music")
+        render_recommendation_tabs(df_music, "music")   
     else:
         st.error("음악 데이터를 찾을 수 없습니다.")
