@@ -486,27 +486,27 @@ if st.session_state.show_persona_survey:
             st.caption(f"현재 저장된 설문: {st.session_state.persona_answers}")
             render_persona_recommendations(st.session_state.persona_answers)
 
-main_tab1, main_tab2, main_tab3 = st.tabs([" 도서", " 영화", " 음악"])
+if not st.session_state.show_persona_survey:
+    main_tab1, main_tab2, main_tab3 = st.tabs([" 도서", " 영화", " 음악"])
+
+    with main_tab1:
+        df_book = load_and_process_data("book_data.csv", get_file_mtime("book_data.csv"))
+        if df_book is not None:
+            render_recommendation_tabs(df_book, "book")
+        else:
+            st.error("도서 데이터를 찾을 수 없습니다.")
 
 
-with main_tab1:
-    df_book = load_and_process_data("book_data.csv", get_file_mtime("book_data.csv"))
-    if df_book is not None:
-        render_recommendation_tabs(df_book, "book")
-    else:
-        st.error("도서 데이터를 찾을 수 없습니다.")
+    with main_tab2:
+        df_movie = load_and_process_data("movie_data.csv", get_file_mtime("movie_data.csv"))
+        if df_movie is not None:
+            render_recommendation_tabs(df_movie, "movie")
+        else:
+            st.error("영화 데이터를 찾을 수 없습니다.")
 
-
-with main_tab2:
-    df_movie = load_and_process_data("movie_data.csv", get_file_mtime("movie_data.csv"))
-    if df_movie is not None:
-        render_recommendation_tabs(df_movie, "movie")
-    else:
-        st.error("영화 데이터를 찾을 수 없습니다.")
-
-with main_tab3:
-    df_music = load_and_process_data("music_data.csv", get_file_mtime("music_data.csv"))
-    if df_music is not None:
-        render_recommendation_tabs(df_music, "music")   
-    else:
-        st.error("음악 데이터를 찾을 수 없습니다.")
+    with main_tab3:
+        df_music = load_and_process_data("music_data.csv", get_file_mtime("music_data.csv"))
+        if df_music is not None:
+            render_recommendation_tabs(df_music, "music")   
+        else:
+            st.error("음악 데이터를 찾을 수 없습니다.")
