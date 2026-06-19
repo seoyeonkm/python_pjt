@@ -669,21 +669,21 @@ if st.session_state.show_persona_survey:
                 key="survey_q2",
             )
 
-            q4 = st.radio(
+            q3 = st.radio(
                 "2. 콘텐츠를 고를 때 가장 중요한 기준은?",
                 ["인기", "평점", "분위기", "최신성"],
                 index=None,
-                key="survey_q4",
+                key="survey_q3",
             )
 
             submitted = st.form_submit_button("설문 저장", type="primary")
             if submitted:
-                if q4 is None:
+                if q3 is None:
                     st.warning("2번 문항을 선택해주세요.")
                 else:
                     st.session_state.persona_answers = {
                         "선호분위기": q2,
-                        "중요기준": q4,
+                        "중요기준": q3,
                     }
                     st.success("설문 결과가 저장되었습니다.")
 
@@ -691,7 +691,7 @@ if st.session_state.show_persona_survey:
         with action_col1:
             if st.button("설문 다시 하기", use_container_width=True):
                 st.session_state.persona_answers = {}
-                for key in ["survey_q2", "survey_q4"]:
+                for key in ["survey_q2", "survey_q3"]:
                     st.session_state.pop(key, None)
                 st.rerun()
 
