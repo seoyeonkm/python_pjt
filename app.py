@@ -29,6 +29,13 @@ GENRE_TO_MOOD_TAGS = {
     "역사": {"몰입"},
     "에세이": {"감성", "힐링"},
     "IT/컴퓨터": {"동기부여"},
+
+    # 음악(5개 단순 장르) 설문 태그 매핑
+    "kpop": {"유쾌함", "감성"},
+    "록": {"몰입", "긴장감"},
+    "발라드": {"감성", "힐링"},
+    "인디": {"신비", "감성"},
+    "힙합": {"몰입", "동기부여"},
 }
 
 DISPLAY_MOOD_TO_TAG = {
@@ -44,6 +51,7 @@ DISPLAY_MOOD_TO_TAG = {
 
 KEYWORD_TO_MOOD_TAGS = {
     "k-pop": {"유쾌함"},
+    "kpop": {"유쾌함"},
     "록": {"몰입"},
     "발라드": {"감성"},
     "힙합": {"몰입"},
@@ -384,18 +392,9 @@ def render_persona_recommendations(answers):
 
     st.markdown("#### 설문 기반 맞춤 추천 결과")
 
-    result_tab1, result_tab2, result_tab3 = st.tabs([" 도서 추천", " 영화 추천", " 음악 추천"])
+    result_tab1, result_tab2, result_tab3 = st.tabs([" 영화 추천", " 음악 추천", " 도서 추천"])
 
     with result_tab1:
-        if not rec_book.empty:
-            if "coverUrl" in rec_book.columns:
-                show_book_cards(get_book_display_df(rec_book))
-            else:
-                show_dataframe(get_display_df(rec_book))
-        else:
-            st.info("도서 추천 결과를 만들 수 없습니다.")
-
-    with result_tab2:
         if not rec_movie.empty:
             if "posterUrl" in rec_movie.columns:
                 show_movie_cards(get_movie_display_df(rec_movie), key_prefix="persona_movie")
@@ -404,11 +403,20 @@ def render_persona_recommendations(answers):
         else:
             st.info("영화 추천 결과를 만들 수 없습니다.")
 
-    with result_tab3:
+    with result_tab2:
         if not rec_music.empty:
             show_music_cards(get_music_display_df(rec_music))
         else:
             st.info("음악 추천 결과를 만들 수 없습니다.")
+
+    with result_tab3:
+        if not rec_book.empty:
+            if "coverUrl" in rec_book.columns:
+                show_book_cards(get_book_display_df(rec_book))
+            else:
+                show_dataframe(get_display_df(rec_book))
+        else:
+            st.info("도서 추천 결과를 만들 수 없습니다.")
 
 
 title_col, button_col = st.columns([6, 1])
@@ -483,26 +491,26 @@ if st.session_state.show_persona_survey:
             render_persona_recommendations(st.session_state.persona_answers)
 
 if not st.session_state.show_persona_survey:
-    main_tab1, main_tab2, main_tab3 = st.tabs([" 도서", " 영화", " 음악"])
+    main_tab1, main_tab2, main_tab3 = st.tabs([" 영화", " 음악", " 도서"])
 
     with main_tab1:
-        df_book = load_and_process_data("book_data.csv", get_file_mtime("book_data.csv"))
-        if df_book is not None:
-            render_recommendation_tabs(df_book, "book")
-        else:
-            st.error("도서 데이터를 찾을 수 없습니다.")
-
-
-    with main_tab2:
         df_movie = load_and_process_data("movie_data.csv", get_file_mtime("movie_data.csv"))
         if df_movie is not None:
             render_recommendation_tabs(df_movie, "movie")
         else:
             st.error("영화 데이터를 찾을 수 없습니다.")
 
-    with main_tab3:
+
+    with main_tab2:
         df_music = load_and_process_data("music_data.csv", get_file_mtime("music_data.csv"))
         if df_music is not None:
-            render_recommendation_tabs(df_music, "music")   
+            render_recommendation_tabs(df_music, "music")
         else:
             st.error("음악 데이터를 찾을 수 없습니다.")
+
+    with main_tab3:
+        df_book = load_and_process_data("book_data.csv", get_file_mtime("book_data.csv"))
+        if df_book is not None:
+            render_recommendation_tabs(df_book, "book")
+        else:
+            st.error("도서 데이터를 찾을 수 없습니다.")
