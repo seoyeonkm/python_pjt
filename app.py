@@ -244,7 +244,7 @@ GENRE_TO_MOOD_TAGS = {
     "에세이": {"감성", "힐링"},
     "IT/컴퓨터": {"동기부여"},
 
-    # 음악(5개 단순 장르) 설문 태그 매핑
+
     "kpop": {"유쾌함", "감성"},
     "록": {"몰입", "긴장감"},
     "발라드": {"감성", "힐링"},
@@ -292,11 +292,10 @@ def load_and_process_data(file_name, file_mtime):
         df = pd.read_csv(file_path)
 
         if file_name == "movie_data.csv" and "title" in df.columns:
-            # 한국어/영어/숫자/기본 문장부호로만 구성된 제목만 유지
             title_pattern = re.compile(r"^[A-Za-z0-9가-힣\s\-:,.!?\'\"()&/]+$")
             df = df[df["title"].astype(str).str.match(title_pattern, na=False)].copy()
 
-        # salespoint 높은 순으로 top10 정렬하는 코드에요
+       
         df['salesPoint'] = pd.to_numeric(df['salesPoint'], errors='coerce').fillna(0)
 
         return df
@@ -444,7 +443,6 @@ def render_recommendation_tabs(df, content_key):
             show_dataframe(get_display_df(top10))
 
     with sub_tab2:
-        # if문에서는 영화는 genre 데이터 자체가 복수값이므로, 장르 선택 시 해당 장르가 포함된 영화들을 필터링
         if content_key == "movie":
             genre_options = get_unique_genres(df)
             genre = st.selectbox("장르 선택", genre_options, key=f"genre_{content_key}")
@@ -453,7 +451,6 @@ def render_recommendation_tabs(df, content_key):
                 show_movie_cards(get_movie_display_df(filtered_df), key_prefix=f"{content_key}_genre")
             else:
                 show_dataframe(get_display_df(filtered_df))
-        # else문에서는 book과 music은 genre가 단일값이므로 기존 방식으로 필터링
         else:
             genre = st.selectbox("장르 선택", df['genre'].dropna().unique(), key=f"genre_{content_key}")
             filtered_df = df[df['genre'] == genre].sort_values(by='salesPoint', ascending=False).head(10)
@@ -522,7 +519,7 @@ def get_persona_recommendations(df, answers):
             if keyword in text:
                 tags.update(mood_set)
 
-         # 태그로 장르명이나 제목에서 추출된 단어를 태그로 활용하는 방법을 사용함
+       
         if not tags:
             tags.add("기본")
         return tags
