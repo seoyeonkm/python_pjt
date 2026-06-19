@@ -555,28 +555,26 @@ def get_persona_recommendations(df, answers):
         "freshness": 0.2,
     }
 
-    if answers.get("작품성향") == "인기작 위주":
-        weights["popularity"] += 0.2
-        weights["freshness"] -= 0.1
-        weights["rating"] -= 0.1
-    elif answers.get("작품성향") == "새로운 작품 위주":
-        weights["freshness"] += 0.2
-        weights["popularity"] -= 0.1
-        weights["rating"] -= 0.1
-
     important = answers.get("중요기준")
-    if important == "평점":
-        weights["rating"] += 0.2
-        weights["genre"] -= 0.1
-        weights["freshness"] -= 0.1
+    if important == "인기":
+       weights["popularity"] += 0.2
+       weights["genre"] -= 0.1
+       weights["freshness"] -= 0.1
+
+    elif important == "평점":
+       weights["rating"] += 0.2
+       weights["genre"] -= 0.1
+       weights["freshness"] -= 0.1
+
     elif important == "최신성":
-        weights["freshness"] += 0.2
-        weights["genre"] -= 0.1
-        weights["rating"] -= 0.1
-    elif important in ["줄거리(주제)", "분위기"]:
-        weights["genre"] += 0.2
-        weights["popularity"] -= 0.1
-        weights["freshness"] -= 0.1
+       weights["freshness"] += 0.2
+       weights["genre"] -= 0.1
+       weights["rating"] -= 0.1
+
+    elif important == "분위기":
+       weights["genre"] += 0.2
+       weights["popularity"] -= 0.1
+       weights["freshness"] -= 0.1
 
     
     for key in weights:
@@ -671,28 +669,20 @@ if st.session_state.show_persona_survey:
                 key="survey_q2",
             )
 
-            q3 = st.radio(
-                "2. 인기작과 새로운 작품 중 무엇을 더 선호하나요?",
-                ["인기작 위주", "반반", "새로운 작품 위주"],
-                index=None,
-                key="survey_q3",
-            )
-
             q4 = st.radio(
-                "3. 콘텐츠를 고를 때 가장 중요한 기준은?",
-                ["평점", "줄거리(주제)", "분위기", "최신성"],
+                "2. 콘텐츠를 고를 때 가장 중요한 기준은?",
+                ["인기", "평점", "분위기", "최신성"],
                 index=None,
                 key="survey_q4",
             )
 
             submitted = st.form_submit_button("설문 저장", type="primary")
             if submitted:
-                if None in [q3, q4]:
-                    st.warning("2, 3번 문항을 모두 선택해주세요.")
+                if q4 is None:
+                    st.warning("2번 문항을 선택해주세요.")
                 else:
                     st.session_state.persona_answers = {
                         "선호분위기": q2,
-                        "작품성향": q3,
                         "중요기준": q4,
                     }
                     st.success("설문 결과가 저장되었습니다.")
@@ -701,7 +691,7 @@ if st.session_state.show_persona_survey:
         with action_col1:
             if st.button("설문 다시 하기", use_container_width=True):
                 st.session_state.persona_answers = {}
-                for key in ["survey_q2", "survey_q3", "survey_q4"]:
+                for key in ["survey_q2", "survey_q4"]:
                     st.session_state.pop(key, None)
                 st.rerun()
 
