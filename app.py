@@ -5,7 +5,221 @@ import re
 
 BASE_DIR = Path(__file__).resolve().parent
 
-st.set_page_config(page_title="콘텐츠 통합 추천 플랫폼", layout="wide")
+st.set_page_config(page_title="Multi-Content Recommendation Platform", layout="wide")
+
+st.markdown(
+    """
+    <style>
+    /* Main app styling */
+    .stApp {
+        background-color: #ffffff;
+        color: #000000;
+        padding: 20px;
+    }
+
+    [data-testid="stHeader"] {
+        background-color: #dbeafe;
+        color: #1e3a8a;
+    }
+
+    .stTextInput,
+    .stSelectbox {
+        margin-bottom: 20px;
+    }
+
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #a7a7a7;
+        color: #ffffff;
+    }
+
+    [data-testid="stSidebarNav"] {
+        background-repeat: no-repeat;
+        padding-top: 100px;
+        background-position: 20px -10px;
+        background-size: 300px;
+    }
+
+    [data-testid="stSidebarNav"]::before {
+        content: "";
+        margin-left: 60px;
+        margin-top: 20px;
+        font-size: 20px;
+        position: relative;
+        top: -300px;
+        font-weight: bold;
+        text-align: center;
+    }
+
+    /* Success message styling */
+    .success-message {
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    /* Main title styling */
+    h1,
+    h2 {
+        color: #000400;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    /* Hero styling */
+    .hero-wrap {
+        background: #f6f6f6;
+        border: 1px solid #bababa;
+        border-radius: 12px;
+        padding: 1rem 1.1rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .hero-kicker {
+        color: #005bb5;
+        font-size: 0.9rem;
+        font-weight: 700;
+    }
+
+    .hero-title {
+        margin: 0;
+        font-family: 'Trebuchet MS', 'Segoe UI', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif !important;
+        font-size: 2.1rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        line-height: 1.15;
+    }
+
+    .hero-sub,
+    .section-note {
+        color: #333333;
+    }
+
+    /* Tabs styling */
+    div[data-baseweb="tab-list"] {
+        gap: 0.3rem;
+    }
+
+    button[data-baseweb="tab"] {
+        background: #f7f7f7;
+        border: 1px solid #d0d0d0;
+        border-radius: 999px;
+        padding: 0.55rem 1.15rem;
+        min-height: 44px;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background: #e0ecff;
+        border-color: #8ab6ff;
+        color: #004a99;
+    }
+
+    /* Button styling */
+    .stButton button {
+        background-color: #bfdbfe;
+        color: #1e3a8a;
+        border-radius: 5px;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .stButton button:hover {
+        background-color: #93c5fd;
+        color: #1e3a8a;
+    }
+
+    .stFormSubmitButton > button {
+        background-color: #bfdbfe;
+        color: #1e3a8a;
+        border-radius: 5px;
+        border: none;
+    }
+
+    .stFormSubmitButton > button:hover {
+        background-color: #93c5fd;
+        color: #1e3a8a;
+    }
+
+    /* Text input styling */
+    .stTextInput input {
+        border: 1px dashed #0c00e6;
+        border-radius: 5px;
+        padding: 8px 12px;
+        background-color: #f9f9f9;
+        font-size: 16px;
+        color: #333333;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .stTextInput input:hover {
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        border-color: #b60000;
+    }
+
+    .stTextInput input:focus {
+        border-color: #0a00b6;
+        box-shadow: 0 0 0 3px rgba(10, 0, 182, 0.16);
+        outline: none;
+    }
+
+    /* Selectbox styling (Streamlit baseweb target) */
+    .stSelectbox div[data-baseweb="select"] > div {
+        border: 1px solid #0c00e6;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        font-size: 16px;
+        color: #333333;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .stSelectbox div[data-baseweb="select"] > div:hover {
+        border-color: #b60000;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .stSelectbox div[data-baseweb="select"] > div:focus-within {
+        border-color: #0a00b6;
+        box-shadow: 0 0 0 3px rgba(10, 0, 182, 0.16);
+    }
+
+    .card-title {
+        color: #111111;
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin-top: 0.3rem;
+        margin-bottom: 0.25rem;
+        line-height: 1.25;
+        min-height: 2.2rem;
+    }
+
+    .card-meta {
+        display: inline-block;
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        color: #475569;
+        font-size: 0.78rem;
+        padding: 0.12rem 0.46rem;
+        border-radius: 999px;
+        margin-bottom: 0.28rem;
+    }
+
+    .stImage img {
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.10);
+    }
+
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 GENRE_TO_MOOD_TAGS = {
@@ -144,9 +358,9 @@ def show_book_cards(df):
                     st.image(row["표지"],width=200)
                 else:
                     st.image("image/no_image.png", width=200)
-                st.markdown(f"**{row['제목']}**")
-                st.caption(row["장르"])
-                st.caption(str(row["발행년도"]))
+                st.markdown(f"<div class='card-title'>{row['제목']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='card-meta'>{row['장르']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='card-meta'>{str(row['발행년도'])}</div>", unsafe_allow_html=True)
 
 
 def show_music_cards(df):
@@ -158,9 +372,9 @@ def show_music_cards(df):
         for col, (_, row) in zip(cols, row_df.iterrows()):
             with col:
                 st.image(row["앨범"], width=200)
-                st.markdown(f"**{row['제목']}**")
-                st.caption(row["장르"])
-                st.caption(str(row["발행년도"]))
+                st.markdown(f"<div class='card-title'>{row['제목']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='card-meta'>{row['장르']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='card-meta'>{str(row['발행년도'])}</div>", unsafe_allow_html=True)
     
     
 
@@ -176,9 +390,9 @@ def show_movie_cards(df, key_prefix="movie"):
         for col, (_, row) in zip(cols, row_df.iterrows()):
             with col:
                 st.image(row["포스터"], width=200)
-                st.markdown(f"**{row['제목']}**")
-                st.caption(row["장르"])
-                st.caption(str(row["발행년도"]))
+                st.markdown(f"<div class='card-title'>{row['제목']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='card-meta'>{row['장르']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='card-meta'>{str(row['발행년도'])}</div>", unsafe_allow_html=True)
 
                 title = str(row.get("제목", ""))
                 year = row.get("발행년도", "")
@@ -215,6 +429,7 @@ def has_genre(genre_text, selected_genre):
 
 
 def render_recommendation_tabs(df, content_key):
+    st.markdown("<div class='section-note'>추천 방식을 선택해 탐색해보세요.</div>", unsafe_allow_html=True)
     sub_tab1, sub_tab2, sub_tab3 = st.tabs([" 전체 TOP 10", " 장르별 정밀 추천", " 랜덤 발견"])
 
     with sub_tab1:
@@ -419,9 +634,18 @@ def render_persona_recommendations(answers):
             st.info("도서 추천 결과를 만들 수 없습니다.")
 
 
-title_col, button_col = st.columns([6, 1])
+title_col, button_col = st.columns([6, 1.5])
 with title_col:
-    st.title("콘텐츠 통합 추천 플랫폼")
+    st.markdown(
+        """
+        <div class="hero-wrap">
+            <div class="hero-kicker">Your Taste, Your Picks!</div>
+            <h2 class="hero-title">Multi-Content Recommendation Platform</h2>
+            <div class="hero-sub">맞춤형 설문과 취향에 맞는 장르 탐색으로 영화, 음악, 도서를 한 번에 추천받아보세요!</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 with button_col:
     st.markdown("<br>", unsafe_allow_html=True)
